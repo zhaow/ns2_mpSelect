@@ -1590,3 +1590,5 @@ Agent/PBC set modulationScheme 0
 
 Agent/MDART set macFailed_ true
 Agent/MDART set etxMetric_ true
+
+Agent/myPing set packetSize_ 64

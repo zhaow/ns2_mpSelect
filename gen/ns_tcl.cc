@@ -3446,6 +3446,7 @@ AOMDV\n\
 Encap 	# common/encap.cc\n\
 IPinIP 	# IP encapsulation \n\
 HDLC 	# High Level Data Link Control\n\
+myPing  # ZhaoW add for protocol test\n\
 }\n\
 set allhdrs [regsub -all {#.*?\\n} $protolist \\n]; # strip comments from above\n\
 foreach prot $allhdrs {\n\
@@ -20129,6 +20130,8 @@ Agent/PBC set modulationScheme 0\n\
 \n\
 Agent/MDART set macFailed_ true\n\
 Agent/MDART set etxMetric_ true\n\
+\n\
+Agent/myPing set packetSize_ 64\n\
 if [TclObject is-class Network/Pcap/Live] {\n\
 Network/Pcap/Live set snaplen_ 4096;# bpf snap len\n\
 Network/Pcap/Live set promisc_ false;\n\
