@@ -36,6 +36,7 @@ myPingAgent::command(int argc, const char*const* argv)
 	        // Store the current time in the 'send_time' field
 	        hdr->send_time = Scheduler::instance().clock();
 	        // Send the packet
+			printf("send ping packet\n");
 	        send(pkt, 0);
 	        // return TCL_OK, so the calling function knows that the
 	        // command has been processed

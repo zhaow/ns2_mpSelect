@@ -472,7 +472,7 @@ Simulator instproc compute-hier-routes {} {
 	}
 
 	$r hier-compute
-
+	
 	# Set up each classifier (n for n levels of hierarchy) 
 	# for every node
 
@@ -528,7 +528,7 @@ Simulator instproc compute-hier-routes {} {
 #		}
 #	}
 #}
-
+	
 }
 
 #
