@@ -48,6 +48,21 @@ myPingAgent::command(int argc, const char*const* argv)
 	 return (Agent::command(argc, argv));
 }
 
+char*
+myPingAgent::addr2str(nsaddr_t addr, int level, char* res)
+{
+	int i, a;
+	char* ret = res;
+	for (i=1; i<=level; i++) {
+		printf("level%d, nodeshift%d, mask%x\n", i, Address::instance().NodeShift_[i], Address::instance().NodeMask_[i]);
+		a = addr >> Address::instance().NodeShift_[i];
+		a = a & Address::instance().NodeMask_[i];
+		ret += sprintf(ret, "%d.", a);
+	}
+	(*ret) = '\0';
+	return res;
+}
+
 void
 myPingAgent::recv(Packet* pkt, Handler* )
 {
@@ -66,8 +81,11 @@ myPingAgent::recv(Packet* pkt, Handler* )
 		send(pktret, 0);
 	} else {
 		char message[200];
-		sprintf(message, "%s recv %d %3.1f", name(), 
-		hdrip->src_.addr_ >> Address::instance().NodeShift_[1], 
+		char addr_str[32];
+		printf("%s\n", addr2str(hdrip->src_.addr_, 3, addr_str));
+		sprintf(message, "%s recv %x %3.1f", name(), 
+		/*hdrip->src_.addr_ >> Address::instance().NodeShift_[1], */
+		hdrip->src_.addr_,
 		(Scheduler::instance().clock() - hdr->send_time) * 1000);
 
 		Tcl& tcl = Tcl::instance();

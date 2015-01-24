@@ -81,12 +81,12 @@ $ns attach-agent $n(11) $ping1
 set ping2 [new Agent/myPing]
 $ns attach-agent $n(2) $ping2
 set ping3 [new Agent/myPing]
-$ns attach-agent $n(5) $ping3
+$ns attach-agent $n(9) $ping3
 
 set ping4 [new Agent/myPing]
 $ns attach-agent $n(7) $ping4
 set ping5 [new Agent/myPing]
-$ns attach-agent $n(9) $ping5
+$ns attach-agent $n(5) $ping5
 
 $ns connect $ping0 $ping1
 $ns connect $ping2 $ping3

@@ -23,6 +23,7 @@ public:
 	myPingAgent();
 	virtual int command(int argc, const char*const* argv);
 	virtual void recv(Packet*, Handler*);
+	char* addr2str(nsaddr_t addr, int level, char* res);
 };
 
 
