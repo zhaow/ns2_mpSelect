@@ -334,6 +334,7 @@ OBJ_CC = \
 	wpan/p802_15_4trace.o wpan/p802_15_4transac.o \
 	apps/pbc.o \
 	myPing/myping.o \
+	mpSelect/mpSelect.o mpSelect/mpSelect_rtable.o  mpSelect/mpSelect_pkt.o\
 	$(OBJ_STL)
 
 

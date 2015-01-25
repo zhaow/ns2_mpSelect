@@ -3447,6 +3447,7 @@ Encap 	# common/encap.cc\n\
 IPinIP 	# IP encapsulation \n\
 HDLC 	# High Level Data Link Control\n\
 myPing  # ZhaoW add for protocol test\n\
+mpSelect #ZhaoW add for muiltpath select test\n\
 }\n\
 set allhdrs [regsub -all {#.*?\\n} $protolist \\n]; # strip comments from above\n\
 foreach prot $allhdrs {\n\

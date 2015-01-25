@@ -201,9 +201,11 @@ static const packet_t PT_MDART = 72;
 	
         // insert new packet types her
 //new portol packet
-static const packet_t PT_MYPING= 73;
+static const packet_t PT_MYPING = 73;
 
-static packet_t       PT_NTYPE = 74; // This MUST be the LAST one
+static const packet_t PT_MPSELECT = 74;
+
+static packet_t       PT_NTYPE = 75; // This MUST be the LAST one
 
 enum packetClass
 {
@@ -422,6 +424,7 @@ public:
 
 
 		name_[PT_MYPING]="myPing";
+		name_[PT_MPSELECT]="mpSelect";
 		name_[PT_NTYPE]= "undefined";
 	}
 	static int addPacket(char *name);

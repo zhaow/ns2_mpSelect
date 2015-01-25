@@ -184,6 +184,7 @@ set protolist {
         IPinIP 	# IP encapsulation 
 	HDLC 	# High Level Data Link Control
 	myPing  # ZhaoW add for protocol test
+	mpSelect #ZhaoW add for muiltpath select test
 }
 set allhdrs [regsub -all {#.*?\n} $protolist \n]; # strip comments from above
 foreach prot $allhdrs {

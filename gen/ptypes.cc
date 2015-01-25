@@ -150,6 +150,8 @@ set ptype(mdart) 72\n\
 set pvals(72) MDART\n\
 set ptype(myping) 73\n\
 set pvals(73) myPing\n\
+set ptype(mpselect) 74\n\
+set pvals(74) mpSelect\n\
 proc ptype2val {str} {\n\
 global ptype\n\
 set str [string tolower $str]\n\
