@@ -37,26 +37,27 @@ void mpSelect::send_ping_handler() {
 		hdrmpS->type()      = PING_PKT;
 		hdrmpS->s_intf()    = path.s_intf();
 		hdrmpS->d_intf()    = path.d_intf();
-		hdrmpS->src_select()= ra_addr();
+		hdrmpS->s_select()  = ra_addr();
+		hdrmpS->d_select()  = dest_select;
 		hdrmpS->send_time() = CURRENT_TIME;
 		hdrmpS->ping_seq()  = path.ping_seq();
 		rtable_.update_ping_info(dest_select, path.s_intf(), path.d_intf());
 		
 		hdrip->saddr() = ra_addr();
 		hdrip->sport() = port();
-		hdrip->daddr() = dest_select;
+		hdrip->daddr() = hdrmpS->s_intf();//to intf
 		hdrip->dport() = dport();
 		hdrcmn->ptype()     = PT_MPSELECT;
 		hdrcmn->direction() = hdr_cmn::DOWN;
-		hdrcmn->size()      = MPSELECT_HDR_LEN + IP_HDR_LEN;
+		hdrcmn->size()      = MPSELECT_HDR_LEN + IP_HDR_LEN + PING_PKT_SIZE;
 		hdrcmn->error()     = 0;
-		hdrcmn->next_hop()  = hdrmpS->d_intf();
+		hdrcmn->next_hop()  = hdrmpS->s_intf();
 		hdrcmn->addr_type() = NS_AF_INET;
 		
 		printf("[%f] %s: ", CURRENT_TIME, addr2str(ra_addr(), strIP));
 		printf("SEND PING[%u] to %s ", 
 			hdrmpS->ping_seq(),
-			addr2str(hdrip->daddr(), strIP));
+			addr2str(hdrmpS->d_select(), strIP));
 		printf("sintf%s ", addr2str(hdrmpS->s_intf(), strIP));
 		printf("dintf%s\n", addr2str(hdrmpS->d_intf(), strIP));
 
@@ -86,11 +87,16 @@ void mpSelect::recv(Packet* p, Handler* h) {
 	}
 
 	if (hdrcmn->ptype() == PT_MPSELECT) {
-		hdr_mpSelect_pkt * hdrmpS = hdr_mpSelect_pkt::access(p);
-		if (hdrmpS->type() == DATA_PKT) {//收到从其他选路协议发出的封装数据包
-			recv_data_pkt(p);
-		} else {//收到ping包
-			recv_ping_pkt(p);
+		//printf("s_type:%d\n", select_type());
+		if (select_type() == SELECT_CORE) { 
+			hdr_mpSelect_pkt * hdrmpS = hdr_mpSelect_pkt::access(p);
+			if (hdrmpS->type() == DATA_PKT) {//收到从其他选路协议发出的封装数据包
+				recv_data_pkt(p);
+			} else {//收到ping包
+				recv_ping_pkt(p);
+			}
+		} else if (select_type() == SELECT_INTF) {
+			forward_mpS_pkt(p);
 		}
 	} else {
 		if (--hdrip->ttl_ < 0) {//当TTL为0时，丢弃
@@ -100,6 +106,39 @@ void mpSelect::recv(Packet* p, Handler* h) {
 		forward_data(p);
 	}	
 }
+
+void mpSelect::forward_mpS_pkt(Packet* p)
+{
+	hdr_cmn *hdrcmn	= hdr_cmn::access(p); 
+	hdr_ip 	*hdrip	= hdr_ip::access(p);
+	hdr_mpSelect_pkt *hdrmpS = hdr_mpSelect_pkt::access(p);
+	nsaddr_t tmp_daddr = hdrip->daddr();
+
+	if(tmp_daddr != hdrmpS->s_intf() && tmp_daddr != hdrmpS->d_intf()) {
+		drop(p, DROP_RTR_NO_ROUTE);
+		return;
+	}
+
+	if (hdrmpS->s_select() == ra_addr()) {
+		hdrip->daddr() = hdrmpS->d_intf();
+		hdrcmn->next_hop() = hdrmpS->d_intf();
+	} else {
+		hdrip->daddr() = ra_addr();
+	}
+	/*
+	char strIP[16];
+	printf("[%f] %s: FORWADR ", 
+		CURRENT_TIME, 
+		addr2str(ra_addr(), strIP)
+	);
+	printf("from %s ", addr2str(hdrip->saddr(), strIP));
+	printf("to %s ",   addr2str(tmp_daddr, strIP));
+	printf("->%s\n",    addr2str(hdrip->daddr(), strIP));
+	*/
+	Scheduler::instance().schedule(target_, p, 0.0);
+}
+
+
 /*转发选路函数*/
 void mpSelect::forward_data(Packet* p)
 {
@@ -143,12 +182,13 @@ void mpSelect::forward_data(Packet* p)
 					hdrmpS->send_time()   = CURRENT_TIME;
 					hdrmpS->s_intf()      = s_intf_ip;
 					hdrmpS->d_intf()      = d_intf_ip;
-					hdrmpS->src_select()  = ra_addr();
+					hdrmpS->s_select()	  = ra_addr();
+					hdrmpS->d_select()    = dest_select;
 					/*将ip的目的地址转为选路协议的地址*/
-					hdrip->daddr() = dest_select;
+					hdrip->daddr() = hdrmpS->s_intf();
 					hdrip->dport() = dport();
 					hdrcmn->ptype()= PT_MPSELECT;
-					hdrcmn->next_hop() = s_intf_ip;
+					hdrcmn->next_hop() = hdrmpS->s_intf();
 				}
 			} else {//没有多路径，正常转发
 				nsaddr_t next_hop = rtable_.lookup(hdrip->daddr());
@@ -184,9 +224,9 @@ void mpSelect::recv_data_pkt(Packet *p)
 	printf("to %s ",   addr2str(hdrmpS->former_addr(), strIP));
 	printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
 	printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
-	printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
+	printf("srcS:%s\n",  addr2str(hdrmpS->s_select(), strIP));
 	/*更新该路径的活动时间*/
-	rtable_.update_rtime(hdrmpS->src_select(), hdrmpS->s_intf(), hdrmpS->d_intf(), CURRENT_TIME);
+	rtable_.update_rtime(hdrmpS->s_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), CURRENT_TIME);
 	/*还原ip报头*/
 	hdrip->daddr() = hdrmpS->former_addr();
 	hdrip->dport() = hdrmpS->former_port();
@@ -207,7 +247,7 @@ void mpSelect::recv_ping_pkt(Packet *p)
 
 	char strIP[16];
 	/*更新该路径的活动时间*/
-	rtable_.update_rtime(hdrmpS->src_select(), hdrmpS->s_intf(), hdrmpS->d_intf(), CURRENT_TIME);
+	rtable_.update_rtime(hdrmpS->s_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), CURRENT_TIME);
 	if (hdrmpS->type() == PING_PKT) {//收到ping包，向源地址响应
 		printf("[%f] %s: RECV PING[%u] ", 
 			CURRENT_TIME, 
@@ -215,12 +255,12 @@ void mpSelect::recv_ping_pkt(Packet *p)
 			hdrmpS->ping_seq());
 		printf("from %s ", addr2str(hdrip->saddr(), strIP));
 		printf("to %s ",   addr2str(hdrip->daddr(), strIP));
-		printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
-		printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
-		printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
+		printf("(%s",      addr2str(hdrmpS->s_intf(), strIP));
+		printf("->%s) ",   addr2str(hdrmpS->d_intf(), strIP));
+		printf("srcS:%s\n",addr2str(hdrmpS->s_select(), strIP));
 
 		/*更新接收时延*/
-		rtable_.update_rdelay(hdrmpS->src_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time());
+		rtable_.update_rdelay(hdrmpS->s_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time());
 		/*申请响应ping包*/
 		Packet* pecho = allocpkt();
 		hdr_cmn *phdrcmn= hdr_cmn::access(pecho); 
@@ -230,23 +270,24 @@ void mpSelect::recv_ping_pkt(Packet *p)
 		phdrmpS->type() 	= PING_BAK;
 		phdrmpS->s_intf() 	= hdrmpS->d_intf();
 		phdrmpS->d_intf() 	= hdrmpS->s_intf();
-		phdrmpS->src_select() = ra_addr();
+		phdrmpS->s_select() = ra_addr();
+		phdrmpS->d_select() = hdrmpS->s_select();
 		phdrmpS->ping_seq() = hdrmpS->ping_seq();
 		phdrmpS->send_time()= CURRENT_TIME;
 		
 		/*给ip报头赋值*/
 		phdrip->saddr() = ra_addr();
 		phdrip->sport() = port();
-		phdrip->daddr() = hdrmpS->src_select();
+		phdrip->daddr() = phdrmpS->s_intf();
 		phdrip->dport() = dport();
 		phdrip->ttl()   = IP_DEF_TTL;
 
 		/*给common报头赋值*/
 		phdrcmn->ptype() 	= PT_MPSELECT;
 		phdrcmn->direction()= hdr_cmn::DOWN;
-		phdrcmn->size() 	= MPSELECT_HDR_LEN + IP_HDR_LEN;
+		phdrcmn->size() 	= MPSELECT_HDR_LEN + IP_HDR_LEN + PING_PKT_SIZE;
 		phdrcmn->error() 	= 0;
-		phdrcmn->next_hop() = hdrmpS->d_intf();
+		phdrcmn->next_hop() = hdrmpS->s_intf();
 		phdrcmn->addr_type()= NS_AF_INET;
 
 		Scheduler::instance().schedule(target_, pecho, 0.0);
@@ -257,18 +298,19 @@ void mpSelect::recv_ping_pkt(Packet *p)
 			hdrmpS->ping_seq());
 		printf("from %s ", addr2str(hdrip->saddr(), strIP));
 		printf("to %s ",   addr2str(hdrip->daddr(), strIP));
-		printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
-		printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
-		printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
+		printf("(%s",      addr2str(hdrmpS->s_intf(), strIP));
+		printf("->%s) ",   addr2str(hdrmpS->d_intf(), strIP));
+		printf("srcS:%s\n",addr2str(hdrmpS->s_select(), strIP));
 
 		/*更新发送时延*/
-		rtable_.update_sdelay(hdrmpS->src_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time(), hdrmpS->ping_seq());
+		rtable_.update_sdelay(hdrmpS->s_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time(), hdrmpS->ping_seq());
 	}
 	Packet::free(p);
 }
 
 int mpSelect::command(int argc, const char* const* argv) 
 {
+	char strIP[16];
 	/*
 	for (int i=0; i<argc; i++) {
 		printf("%s\n", argv[i]);
@@ -279,7 +321,17 @@ int mpSelect::command(int argc, const char* const* argv)
 			ping_timer_.resched(0.0);
 			return TCL_OK;
 		} else if (strcmp(argv[1], "print-rtable") == 0) {
+			printf("**********%s Rtable**********\n", addr2str(ra_addr(), strIP));
 			rtable_.print();
+			return TCL_OK;
+		} else if (strcmp(argv[1], "stop-ping") == 0) {
+			ping_timer_.cancel();
+			return TCL_OK;
+		} else if (strcmp(argv[1], "core") == 0) {
+			select_type() = SELECT_CORE;
+			return TCL_OK;
+		} else if (strcmp(argv[1], "intf") == 0) {
+			select_type() = SELECT_INTF;
 			return TCL_OK;
 		}
 	} else if (argc == 3) {
