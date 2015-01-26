@@ -4286,6 +4286,12 @@ Agent/AOMDV set dport_   0\n\
 Agent/AOMDV set aomdv_prim_alt_path_len_diff_ 1\n\
 Agent/AOMDV set aomdv_max_paths_ 3\n\
 \n\
+Agent/mpSelect instproc init args {\n\
+$self next $args\n\
+}\n\
+Agent/mpSelect set sport_ 0\n\
+Agent/mpSelect set dport_ 0\n\
+\n\
 RouteLogic instproc register {proto args} {\n\
 $self instvar rtprotos_ node_rtprotos_ default_node_rtprotos_\n\
 if [info exists rtprotos_($proto)] {\n\
@@ -21145,6 +21151,9 @@ $self at 0.0 \"$node start-dsr\"\n\
 AODV {\n\
 set ragent [$self create-aodv-agent $node]\n\
 }\n\
+mpSelect {\n\
+set ragent [$self create-mpselect-agent $node]\n\
+}\n\
 AOMDV {\n\
 set ragent [$self create-aomdv-agent $node]\n\
 }\n\
@@ -21343,6 +21352,13 @@ return $ragent\n\
 Simulator instproc create-aodv-agent { node } {\n\
 set ragent [new Agent/AODV [$node node-addr]]\n\
 $self at 0.0 \"$ragent start\"     ;# start BEACON/HELLO Messages\n\
+$node set ragent_ $ragent\n\
+return $ragent\n\
+}\n\
+\n\
+Simulator instproc create-mpselect-agent { node } {\n\
+set ragent [new Agent/mpSelect [$node node-addr]]\n\
+$self at 0.0 \"$ragent start\"\n\
 $node set ragent_ $ragent\n\
 return $ragent\n\
 }\n\

@@ -76,13 +76,16 @@ void mpath::delete_mpath_item(nsaddr_t s_intf, nsaddr_t d_intf)
 
 void mpath::update_send_delay(nsaddr_t s_intf, nsaddr_t d_intf, double t, unsigned int seq)
 {
-	
+	char strIP[16];
 	mpath_item *p = pathHead();
 
 	while (p != NULL) {
 		if (p->s_intf()==s_intf && p->d_intf()==d_intf) {
 			if (p->ping_seq() > seq) {
 				p->send_delay() = t + (p->ping_seq()-seq-1)*SEND_PING_INTERVAL- p->ping_send_time();
+				printf("[%f] TO:%s ", CURRENT_TIME, addr2str(select_addr(), strIP));
+				printf("(%s->", addr2str(select_addr(), strIP));
+				printf("%s) SDELAY:%.1fms\n", addr2str(s_intf, strIP), p->send_delay()*1000);
 			} else {
 				printf("[%f] seq:%d is wrong, current ping_seq:%d\n", CURRENT_TIME, seq, p->ping_seq());
 			}
@@ -96,11 +99,15 @@ void mpath::update_send_delay(nsaddr_t s_intf, nsaddr_t d_intf, double t, unsign
 
 void mpath::update_recv_delay(nsaddr_t s_intf, nsaddr_t d_intf, double t)
 {
+	char strIP[16];
 	mpath_item *p = pathHead();
 
 	while (p != NULL) {
 		if (p->s_intf()==s_intf && p->d_intf()==d_intf) {
 			p->recv_delay() = CURRENT_TIME - t;
+			printf("[%f] FROM:%s ", CURRENT_TIME, addr2str(select_addr(), strIP));
+			printf("(%s<-", addr2str(select_addr(), strIP));
+			printf("%s) RDELAY:%.1fms\n", addr2str(s_intf, strIP), p->recv_delay()*1000);
 			break;
 		} else {
 			p = p->next_path();
@@ -472,7 +479,6 @@ bool mpRtable::get_path_item(nsaddr_t& select, mpath_item& path)
 
 	if (p == NULL && s == NULL) {
 		s = mptable_head();
-		p = s->pathHead(); 
 	}
 
 	for (; s!=NULL; s=s->next_select()) {
@@ -483,11 +489,13 @@ bool mpRtable::get_path_item(nsaddr_t& select, mpath_item& path)
 		if (p!=NULL) {
 			select = s->select_addr();
 			path = (*p);
+			/*
 			char strIP[16];
 			printf("( %s ", addr2str(s->select_addr(), strIP));
 			printf("%s)->", addr2str(p->s_intf(), strIP));
 			printf("( %s ", addr2str(select, strIP));
 			printf("%s)",   addr2str(path.s_intf(), strIP));
+			*/
 			return TRUE;
 		}
 	}
@@ -502,6 +510,7 @@ void mpath::update_ping(nsaddr_t s_intf, nsaddr_t d_intf)
 		if (p->s_intf()==s_intf && p->d_intf()==d_intf) {
 			p->ping_send_time() = CURRENT_TIME;
 			p->ping_seq()++;
+			//printf("update_ping %f %u", CURRENT_TIME, p->ping_seq());
 			break;
 		} else {
 			p = p->next_path();

@@ -197,3 +197,9 @@ Agent/AOMDV set sport_   0
 Agent/AOMDV set dport_   0
 Agent/AOMDV set aomdv_prim_alt_path_len_diff_ 1
 Agent/AOMDV set aomdv_max_paths_ 3
+
+Agent/mpSelect instproc init args {
+		$self next $args
+}
+Agent/mpSelect set sport_ 0
+Agent/mpSelect set dport_ 0

@@ -630,6 +630,9 @@ Simulator instproc create-wireless-node args {
 		    AODV {
 			    set ragent [$self create-aodv-agent $node]
 		    }
+		    mpSelect {
+				set ragent [$self create-mpselect-agent $node]
+		    }
 		    AOMDV {
 			    set ragent [$self create-aomdv-agent $node]
 		    }
@@ -857,6 +860,13 @@ Simulator instproc create-aodv-agent { node } {
         $self at 0.0 "$ragent start"     ;# start BEACON/HELLO Messages
         $node set ragent_ $ragent
         return $ragent
+}
+
+Simulator instproc create-mpselect-agent { node } {
+	set ragent [new Agent/mpSelect [$node node-addr]]
+		$self at 0.0 "$ragent start"
+		$node set ragent_ $ragent
+		return $ragent
 }
 
 # AOMDV patch

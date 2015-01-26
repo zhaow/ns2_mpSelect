@@ -89,7 +89,8 @@ PriQueue::recv(Packet *p, Handler *h)
 		case PT_DSR:
 		case PT_MESSAGE:
                 case PT_TORA:
-                case PT_AODV:
+				case PT_AODV:
+		case PT_MPSELECT:
 		case PT_AOMDV:
 		case PT_MDART:
 			recvHighPriority(p, h);

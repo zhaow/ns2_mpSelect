@@ -272,7 +272,8 @@ public:
 		    type == PT_TORA ||
 		    type == PT_PUMA ||
 		    type == PT_AODV ||
-		    type == PT_MDART)
+		    type == PT_MDART||
+		    type == PT_MPSELECT)
 			return ROUTING;		
 		if (type == PT_TCP || 
 		    type == PT_TELNET || 

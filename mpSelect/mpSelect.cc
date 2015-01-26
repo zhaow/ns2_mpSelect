@@ -39,12 +39,13 @@ void mpSelect::send_ping_handler() {
 		hdrmpS->d_intf()    = path.d_intf();
 		hdrmpS->src_select()= ra_addr();
 		hdrmpS->send_time() = CURRENT_TIME;
+		hdrmpS->ping_seq()  = path.ping_seq();
 		rtable_.update_ping_info(dest_select, path.s_intf(), path.d_intf());
 		
 		hdrip->saddr() = ra_addr();
-		hdrip->sport() = RT_PORT;
+		hdrip->sport() = port();
 		hdrip->daddr() = dest_select;
-		hdrip->dport() = RT_PORT;
+		hdrip->dport() = dport();
 		hdrcmn->ptype()     = PT_MPSELECT;
 		hdrcmn->direction() = hdr_cmn::DOWN;
 		hdrcmn->size()      = MPSELECT_HDR_LEN + IP_HDR_LEN;
@@ -52,7 +53,7 @@ void mpSelect::send_ping_handler() {
 		hdrcmn->next_hop()  = hdrmpS->d_intf();
 		hdrcmn->addr_type() = NS_AF_INET;
 		
-		printf("[%f] %s", CURRENT_TIME, addr2str(ra_addr(), strIP));
+		printf("[%f] %s: ", CURRENT_TIME, addr2str(ra_addr(), strIP));
 		printf("SEND PING[%u] to %s ", 
 			hdrmpS->ping_seq(),
 			addr2str(hdrip->daddr(), strIP));
@@ -145,7 +146,7 @@ void mpSelect::forward_data(Packet* p)
 					hdrmpS->src_select()  = ra_addr();
 					/*将ip的目的地址转为选路协议的地址*/
 					hdrip->daddr() = dest_select;
-					hdrip->dport() = RT_PORT;
+					hdrip->dport() = dport();
 					hdrcmn->ptype()= PT_MPSELECT;
 					hdrcmn->next_hop() = s_intf_ip;
 				}
@@ -176,7 +177,7 @@ void mpSelect::recv_data_pkt(Packet *p)
 	hdr_mpSelect_pkt *hdrmpS = hdr_mpSelect_pkt::access(p);
 
 	char strIP[16];
-	printf("[%f] %s: recv DATA ", 
+	printf("[%f] %s: RECV DATA ", 
 		CURRENT_TIME, 
 		addr2str(ra_addr(), strIP));
 	printf("from %s ", addr2str(hdrip->saddr(), strIP));
@@ -205,20 +206,21 @@ void mpSelect::recv_ping_pkt(Packet *p)
 	hdr_mpSelect_pkt *hdrmpS = hdr_mpSelect_pkt::access(p);
 
 	char strIP[16];
-	printf("[%f] %s: recv PING ", 
-		CURRENT_TIME, 
-		addr2str(ra_addr(), strIP));
-	printf("from %s ", addr2str(hdrip->saddr(), strIP));
-	printf("to %s ",   addr2str(hdrmpS->former_addr(), strIP));
-	printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
-	printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
-	printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
-
 	/*更新该路径的活动时间*/
 	rtable_.update_rtime(hdrmpS->src_select(), hdrmpS->s_intf(), hdrmpS->d_intf(), CURRENT_TIME);
 	if (hdrmpS->type() == PING_PKT) {//收到ping包，向源地址响应
+		printf("[%f] %s: RECV PING[%u] ", 
+			CURRENT_TIME, 
+			addr2str(ra_addr(), strIP),
+			hdrmpS->ping_seq());
+		printf("from %s ", addr2str(hdrip->saddr(), strIP));
+		printf("to %s ",   addr2str(hdrip->daddr(), strIP));
+		printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
+		printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
+		printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
+
 		/*更新接收时延*/
-		rtable_.update_rdelay(hdrmpS->src_select(), hdrmpS->s_intf(), hdrmpS->d_intf(), hdrmpS->send_time());
+		rtable_.update_rdelay(hdrmpS->src_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time());
 		/*申请响应ping包*/
 		Packet* pecho = allocpkt();
 		hdr_cmn *phdrcmn= hdr_cmn::access(pecho); 
@@ -234,9 +236,9 @@ void mpSelect::recv_ping_pkt(Packet *p)
 		
 		/*给ip报头赋值*/
 		phdrip->saddr() = ra_addr();
-		phdrip->sport() = RT_PORT;
+		phdrip->sport() = port();
 		phdrip->daddr() = hdrmpS->src_select();
-		phdrip->dport() = RT_PORT;
+		phdrip->dport() = dport();
 		phdrip->ttl()   = IP_DEF_TTL;
 
 		/*给common报头赋值*/
@@ -249,8 +251,18 @@ void mpSelect::recv_ping_pkt(Packet *p)
 
 		Scheduler::instance().schedule(target_, pecho, 0.0);
 	} else {
+		printf("[%f] %s: RECV BACK[%u] ", 
+			CURRENT_TIME, 
+			addr2str(ra_addr(), strIP),
+			hdrmpS->ping_seq());
+		printf("from %s ", addr2str(hdrip->saddr(), strIP));
+		printf("to %s ",   addr2str(hdrip->daddr(), strIP));
+		printf("by %s ",   addr2str(hdrmpS->s_intf(), strIP));
+		printf("->%s", 	   addr2str(hdrmpS->d_intf(), strIP));
+		printf("srcS:%s\n",  addr2str(hdrmpS->src_select(), strIP));
+
 		/*更新发送时延*/
-		rtable_.update_sdelay(hdrmpS->src_select(), hdrmpS->s_intf(), hdrmpS->d_intf(), hdrmpS->send_time(), hdrmpS->ping_seq());
+		rtable_.update_sdelay(hdrmpS->src_select(), hdrmpS->d_intf(), hdrmpS->s_intf(), hdrmpS->send_time(), hdrmpS->ping_seq());
 	}
 	Packet::free(p);
 }
