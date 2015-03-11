@@ -65,6 +65,7 @@
 
 #include "diffusion/diff_header.h" // DIFFUSION -- Chalermek
 
+#include "mpSelect/mpSelect_pkt.h"
 
 PacketTracer::PacketTracer() : next_(0)
 {
@@ -1456,6 +1457,9 @@ void CMUTrace::format(Packet* p, const char *why)
 		case PT_GAF:
 		case PT_PING:
 			break;
+		case PT_MPSELECT:
+			format_mpselect(p, offset);
+			break;
 		default:
 
 			if(pktTrc_ && pktTrc_->format_unknow(p, offset, pt_, newtrace_))
@@ -1603,3 +1607,29 @@ void CMUTrace::calculate_broadcast_parameters() {
 	duration_scaling_factor_ = atof(tcl.result());
 }
 //</zheng>
+
+void CMUTrace::format_mpselect(Packet *p, int offset)
+{
+	struct hdr_mpSelect_pkt* ph = HDR_MPSELECT_PKT(p);
+
+	if (pt_->tagged()) {
+		sprintf(pt_->buffer()+offset, 
+		"-mpSelect:o%d -mpSelect:d%d -mpSelect:s%d", 
+		ph->s_intf(),
+		ph->d_intf(),
+		ph->ping_seq() );
+	} else if (newtrace_) {
+		sprintf(pt_->buffer()+offset, 
+		"-P -mpSelect -Po%d -Pd%d -Ps%d", 
+		ph->s_intf(),
+		ph->d_intf(),
+		ph->ping_seq() );
+	} else {
+		sprintf(pt_->buffer()+offset, 
+		"[mpSelect %d %d %d]", 
+		ph->s_intf(),
+		ph->d_intf(),
+		ph->ping_seq() );
+	}
+}
+
